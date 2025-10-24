@@ -26,7 +26,7 @@ public class CommandFlagArgument extends FlagArgument {
         replaceSuggestions((info, builder) -> {
             // Extract information
             CommandSender sender = info.sender();
-            CommandMap commandMap = CommandAPIBukkit.get().getSimpleCommandMap();
+            CommandMap commandMap = CommandAPIBukkit.get().getCommandMap();
             String command = info.currentArg();
 
             // Setup context for errors
