@@ -6,7 +6,7 @@
 
     <groupId>gg.lode</groupId>
     <artifactId>Bookshelf-CommandAPI</artifactId>
-    <version>1.0.2</version>
+    <version>1.0.21</version>
     <packaging>jar</packaging>
 
     <name>Bookshelf-CommandAPI</name>
@@ -59,8 +59,8 @@
         </dependency>
         <dependency>
             <groupId>dev.jorel</groupId>
-            <artifactId>commandapi-bukkit-shade</artifactId>
-            <version>10.1.2</version>
+            <artifactId>commandapi-paper-shade</artifactId>
+            <version>11.0.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
