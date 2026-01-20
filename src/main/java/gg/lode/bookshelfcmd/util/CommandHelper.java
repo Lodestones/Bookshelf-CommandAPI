@@ -6,6 +6,7 @@ import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public class CommandHelper {
@@ -20,6 +21,11 @@ public class CommandHelper {
         if (playerProfile == null || playerProfile.getUniqueId() == null) return null;
 
         return getOfflinePlayerOrPlayer(playerProfile.getUniqueId());
+    }
+
+    @Nullable
+    public static List<OfflinePlayer> convertPlayerProfileToOfflinePlayers(List<PlayerProfile> profiles) {
+        return profiles.stream().map(p -> getOfflinePlayerOrPlayer(p.getUniqueId())).filter(Objects::nonNull).toList();
     }
 
 }
