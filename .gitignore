@@ -1,4 +1,5 @@
 dependency-reduced-pom.xml
 .idea
-Bookshelf-Events.iml
+.DS_Store
+Bookshelf-CommandAPI.iml
 target
