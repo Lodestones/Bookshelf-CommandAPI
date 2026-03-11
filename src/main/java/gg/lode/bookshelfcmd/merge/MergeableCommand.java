@@ -1,14 +1,12 @@
 package gg.lode.bookshelfcmd.merge;
 
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import dev.jorel.commandapi.Brigadier;
 import dev.jorel.commandapi.CommandAPICommand;
-import dev.jorel.commandapi.CommandAPIPaper;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.lang.reflect.Method;
+import java.util.ArrayList;
 
 /**
  * A CommandAPICommand that supports merging with existing vanilla commands.
@@ -44,34 +42,29 @@ public class MergeableCommand extends CommandAPICommand {
     public void merge(String namespace) {
         CommandNode<?> vanillaNode = Brigadier.getRootNode().getChild(getName());
 
-        if (!(vanillaNode instanceof LiteralCommandNode<?> vanillaLiteral)) {
+        if (!(vanillaNode instanceof LiteralCommandNode<?>)) {
             // No vanilla command found, just register normally
             register(namespace);
             return;
         }
 
         try {
-            // Get this command as a node
-            Method toLiteralMethod = CommandAPICommand.class.getDeclaredMethod("toLiteralCommandNode");
-            toLiteralMethod.setAccessible(true);
-            LiteralCommandNode<Object> customNode = (LiteralCommandNode<Object>) toLiteralMethod.invoke(this);
+            // Save vanilla children before registration overwrites them
+            var vanillaChildren = new ArrayList<>(((LiteralCommandNode<Object>) vanillaNode).getChildren());
 
-            // Start with vanilla command structure
-            LiteralArgumentBuilder<Object> merged = ((LiteralCommandNode<Object>) vanillaLiteral).createBuilder();
+            // Register the custom command normally (this replaces the vanilla node)
+            super.register(namespace);
 
-            // Add all vanilla children
-            for (CommandNode<Object> child : ((LiteralCommandNode<Object>) vanillaLiteral).getChildren()) {
-                merged.then(child);
+            // Get the newly registered node and re-add vanilla children
+            CommandNode<?> registeredNode = Brigadier.getRootNode().getChild(getName());
+            if (registeredNode instanceof LiteralCommandNode<?>) {
+                LiteralCommandNode<Object> registeredLiteral = (LiteralCommandNode<Object>) registeredNode;
+                for (CommandNode<Object> vanillaChild : vanillaChildren) {
+                    if (registeredLiteral.getChild(vanillaChild.getName()) == null) {
+                        registeredLiteral.addChild(vanillaChild);
+                    }
+                }
             }
-
-            // Add custom children from this command
-            for (CommandNode<Object> child : customNode.getChildren()) {
-                merged.then(child);
-            }
-
-            // Register merged command
-            CommandAPIPaper.getPaper().registerCommandNode(merged, namespace);
-
         } catch (Exception e) {
             // Fallback: register normally if reflection fails
             register(namespace);
