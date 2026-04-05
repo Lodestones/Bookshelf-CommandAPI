@@ -6,7 +6,7 @@
 
     <groupId>gg.lode</groupId>
     <artifactId>Bookshelf-CommandAPI</artifactId>
-    <version>1.0.4</version>
+    <version>1.0.41</version>
     <packaging>jar</packaging>
 
     <name>Bookshelf-CommandAPI</name>
