@@ -6,7 +6,7 @@
 
     <groupId>gg.lode</groupId>
     <artifactId>Bookshelf-CommandAPI</artifactId>
-    <version>1.0.42</version>
+    <version>1.0.43</version>
     <packaging>jar</packaging>
 
     <name>Bookshelf-CommandAPI</name>
@@ -26,6 +26,9 @@
         <repository>
             <id>papermc-repo</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
         </repository>
         <repository>
             <id>sonatype</id>
