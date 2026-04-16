@@ -6,7 +6,7 @@
 
     <groupId>gg.lode</groupId>
     <artifactId>Bookshelf-CommandAPI</artifactId>
-    <version>1.0.41</version>
+    <version>1.0.42</version>
     <packaging>jar</packaging>
 
     <name>Bookshelf-CommandAPI</name>
@@ -66,7 +66,7 @@
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
-            <version>26.1.1.build.15-alpha</version>
+            <version>1.21.4-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <dependency>

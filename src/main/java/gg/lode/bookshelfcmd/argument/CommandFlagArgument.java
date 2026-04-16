@@ -20,8 +20,8 @@ import java.util.*;
 public class CommandFlagArgument extends FlagArgument {
     private final SuggestionsBranch<CommandSender> replacements = SuggestionsBranch.suggest();
 
-    public CommandFlagArgument(String nodeName, Set<Character> flags, Set<Character> valueFlags) {
-        super(nodeName, flags, valueFlags);
+    public CommandFlagArgument(String nodeName, Set<Character> flags, Set<Character> valueFlags, Set<String> wordFlags) {
+        super(nodeName, flags, valueFlags, wordFlags);
 
         replaceSuggestions((info, builder) -> {
             // Extract information
@@ -106,27 +106,43 @@ public class CommandFlagArgument extends FlagArgument {
             // Flag handling logic
             for (String str : command.split(" ")) {
                 if (str.startsWith("-")) {
-                    Set<Character> usedFlags = new HashSet<>();
+                    Set<Character> usedCharFlags = new HashSet<>();
+                    Set<String> usedWordFlagSet = new HashSet<>();
                     for (String part : info.currentInput().split("\\s+")) {
-                        if (part.startsWith("-") && part.length() > 1) {
+                        if (part.startsWith("--") && part.length() > 2) {
+                            usedWordFlagSet.add(part.substring(2));
+                        } else if (part.startsWith("-") && part.length() > 1) {
                             for (char c : part.substring(1).toCharArray()) {
-                                usedFlags.add(c);
+                                usedCharFlags.add(c);
                             }
                         }
                     }
 
-                    List<Character> unusedFlags = allFlags.stream()
-                            .filter(f -> !usedFlags.contains(f))
+                    List<Character> unusedCharFlags = allFlags.stream()
+                            .filter(f -> !usedCharFlags.contains(f))
+                            .toList();
+                    List<String> unusedWordFlags = wordFlags.stream()
+                            .filter(w -> !usedWordFlagSet.contains(w))
                             .toList();
 
                     if (!info.currentInput().endsWith(" ")) {
-                        for (Character f : unusedFlags) {
-                            String clean = str.substring(1);
-                            builder.suggest("-" + clean + f);
+                        if (str.startsWith("--")) {
+                            String partial = str.substring(2);
+                            for (String w : unusedWordFlags) {
+                                if (w.startsWith(partial)) builder.suggest("--" + w);
+                            }
+                        } else {
+                            for (Character f : unusedCharFlags) {
+                                String clean = str.substring(1);
+                                builder.suggest("-" + clean + f);
+                            }
                         }
                     } else {
-                        for (Character f : unusedFlags) {
+                        for (Character f : unusedCharFlags) {
                             builder.suggest("-" + f);
+                        }
+                        for (String w : unusedWordFlags) {
+                            builder.suggest("--" + w);
                         }
                     }
                 }
@@ -136,6 +152,10 @@ public class CommandFlagArgument extends FlagArgument {
     }
 
     public CommandFlagArgument(String nodeName, Set<Character> flags) {
-        this(nodeName, flags, Set.of());
+        this(nodeName, flags, Set.of(), Set.of());
+    }
+
+    public CommandFlagArgument(String nodeName, Set<Character> flags, Set<Character> valueFlags) {
+        this(nodeName, flags, valueFlags, Set.of());
     }
 }
