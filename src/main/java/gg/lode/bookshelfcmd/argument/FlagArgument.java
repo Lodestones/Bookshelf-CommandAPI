@@ -79,6 +79,18 @@ public class FlagArgument extends GreedyStringArgument {
     }
 
     /**
+     * Checks if a short flag or its long word flag equivalent is present.
+     *
+     * @param input     The full command input string
+     * @param shortFlag The single-character flag to check, e.g. 'r'
+     * @param longFlag  The long word flag to check (without --), e.g. "remove"
+     * @return true if either -shortFlag or --longFlag is present
+     */
+    public static boolean hasFlag(String input, char shortFlag, String longFlag) {
+        return hasFlags(input, String.valueOf(shortFlag)) || hasWordFlag(input, longFlag);
+    }
+
+    /**
      * Checks if all characters of the given flagSet exist in the command input.
      *
      * @param input   The full command input string, e.g. "/test -sd 20 -e 50"
@@ -135,6 +147,19 @@ public class FlagArgument extends GreedyStringArgument {
      * @return ParsedFlags containing active flags, assigned values, and active word flags
      */
     public static ParsedFlags parseFlags(String input, Set<Character> flagsWithValue) {
+        return parseFlags(input, flagsWithValue, Set.of());
+    }
+
+    /**
+     * Parses flags and their values from a full command input string.
+     * Supports grouped flags like -es, values after value flags, and word flags (--skip, --duration 7d).
+     *
+     * @param input              Full input string, e.g. "/test sub -d 20 -es 50 --duration 7d"
+     * @param flagsWithValue     Set of single-char flags that expect a value, e.g. Set.of('d', 'e', 'c')
+     * @param wordFlagsWithValue Set of word flags that expect a value, e.g. Set.of("duration", "delay")
+     * @return ParsedFlags containing active flags, assigned values, and active word flags
+     */
+    public static ParsedFlags parseFlags(String input, Set<Character> flagsWithValue, Set<String> wordFlagsWithValue) {
         ParsedFlags parsed = new ParsedFlags();
         if (input == null || input.isEmpty()) return parsed;
 
@@ -145,9 +170,13 @@ public class FlagArgument extends GreedyStringArgument {
 
             if (!arg.startsWith("-") || arg.length() < 2) continue;
 
-            // Word flag: --skip
+            // Word flag: --skip or --duration 7d
             if (arg.startsWith("--")) {
-                parsed.activeWordFlags.add(arg.substring(2));
+                String word = arg.substring(2);
+                parsed.activeWordFlags.add(word);
+                if (wordFlagsWithValue.contains(word) && i + 1 < args.length && !args[i + 1].startsWith("-")) {
+                    parsed.wordFlagValues.put(word, args[++i]);
+                }
                 continue;
             }
 
@@ -193,6 +222,19 @@ public class FlagArgument extends GreedyStringArgument {
      * @return A sanitized string with only non-flag arguments
      */
     public static String sanitizeInput(String input, Set<Character> flagsWithValue, Set<String> wordFlagsToStrip) {
+        return sanitizeInput(input, flagsWithValue, wordFlagsToStrip, Set.of());
+    }
+
+    /**
+     * Removes all single-char flags, their values, word flags, and word flag values from the input string.
+     *
+     * @param input                  The full command input
+     * @param flagsWithValue         Set of single-char flags that expect a value
+     * @param wordFlagsToStrip       Set of word flag names to strip (without --)
+     * @param wordFlagsWithValue     Set of word flags that expect a value (their value will also be stripped)
+     * @return A sanitized string with only non-flag arguments
+     */
+    public static String sanitizeInput(String input, Set<Character> flagsWithValue, Set<String> wordFlagsToStrip, Set<String> wordFlagsWithValue) {
         if (input == null || input.isEmpty()) return "";
 
         String[] args = input.trim().split("\\s+");
@@ -201,10 +243,14 @@ public class FlagArgument extends GreedyStringArgument {
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
 
-            // Word flag: --skip, --force, etc.
+            // Word flag: --skip, --force, --duration 7d, etc.
             if (arg.startsWith("--") && arg.length() > 2) {
                 String word = arg.substring(2);
                 if (wordFlagsToStrip.isEmpty() || wordFlagsToStrip.contains(word)) {
+                    // Also skip the value token if this word flag expects one
+                    if (wordFlagsWithValue.contains(word) && i + 1 < args.length && !args[i + 1].startsWith("-")) {
+                        i++;
+                    }
                     continue; // strip it
                 }
                 result.add(arg);
@@ -235,17 +281,31 @@ public class FlagArgument extends GreedyStringArgument {
         private final Set<Character> activeFlags = new HashSet<>();
         private final Map<Character, String> flagValues = new HashMap<>();
         private final Set<String> activeWordFlags = new HashSet<>();
+        private final Map<String, String> wordFlagValues = new HashMap<>();
 
         public boolean hasFlag(char flag) {
             return activeFlags.contains(flag) || flagValues.containsKey(flag);
+        }
+
+        public boolean hasFlag(char shortFlag, String longFlag) {
+            return hasFlag(shortFlag) || hasWordFlag(longFlag);
         }
 
         public String getFlagValue(char flag) {
             return flagValues.get(flag);
         }
 
+        public String getFlagValue(char shortFlag, String longFlag) {
+            String val = getFlagValue(shortFlag);
+            return val != null ? val : getWordFlagValue(longFlag);
+        }
+
         public boolean hasWordFlag(String word) {
             return activeWordFlags.contains(word);
+        }
+
+        public String getWordFlagValue(String word) {
+            return wordFlagValues.get(word);
         }
     }
 }
