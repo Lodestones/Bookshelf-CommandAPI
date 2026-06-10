@@ -160,6 +160,24 @@ public class FlagArgument extends GreedyStringArgument {
      * @return ParsedFlags containing active flags, assigned values, and active word flags
      */
     public static ParsedFlags parseFlags(String input, Set<Character> flagsWithValue, Set<String> wordFlagsWithValue) {
+        return parseFlags(input, flagsWithValue, wordFlagsWithValue, Set.of());
+    }
+
+    /**
+     * Parses flags and their values, with support for greedy (multi-token) word
+     * flag values. A flag listed in {@code greedyWordFlags} consumes every token
+     * after it up to the next flag, joined by spaces — so {@code --offset 10 0 0}
+     * or {@code --offset 10, 0, -5} is captured whole. Value tokens may be
+     * negative numbers ({@code --offset -5,0,0}); a leading {@code -} only marks
+     * a flag when it isn't a number (see {@link #isFlagToken(String)}).
+     *
+     * @param input              Full input string
+     * @param flagsWithValue     Single-char flags that expect a value
+     * @param wordFlagsWithValue Word flags that expect a single-token value
+     * @param greedyWordFlags    Word flags that expect a greedy multi-token value
+     */
+    public static ParsedFlags parseFlags(String input, Set<Character> flagsWithValue,
+                                         Set<String> wordFlagsWithValue, Set<String> greedyWordFlags) {
         ParsedFlags parsed = new ParsedFlags();
         if (input == null || input.isEmpty()) return parsed;
 
@@ -168,19 +186,24 @@ public class FlagArgument extends GreedyStringArgument {
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
 
-            if (!arg.startsWith("-") || arg.length() < 2) continue;
+            if (!isFlagToken(arg)) continue;
 
-            // Word flag: --skip or --duration 7d
+            // Word flag: --skip / --duration 7d / --offset 10 0 0 (greedy)
             if (arg.startsWith("--")) {
                 String word = arg.substring(2);
                 parsed.activeWordFlags.add(word);
-                if (wordFlagsWithValue.contains(word) && i + 1 < args.length && !args[i + 1].startsWith("-")) {
+                if (greedyWordFlags.contains(word)) {
+                    StringBuilder sb = new StringBuilder();
+                    while (i + 1 < args.length && !isFlagToken(args[i + 1])) {
+                        if (sb.length() > 0) sb.append(' ');
+                        sb.append(args[++i]);
+                    }
+                    if (sb.length() > 0) parsed.wordFlagValues.put(word, sb.toString());
+                } else if (wordFlagsWithValue.contains(word) && i + 1 < args.length && !isFlagToken(args[i + 1])) {
                     parsed.wordFlagValues.put(word, args[++i]);
                 }
                 continue;
             }
-
-            if (arg.matches("-\\d+")) continue;
 
             String chunk = arg.substring(1);
 
@@ -191,7 +214,7 @@ public class FlagArgument extends GreedyStringArgument {
                 boolean isLastInChunk = j == chunk.length() - 1;
                 boolean expectsValue = flagsWithValue.contains(flag);
 
-                if (expectsValue && isLastInChunk && i + 1 < args.length && !args[i + 1].startsWith("-")) {
+                if (expectsValue && isLastInChunk && i + 1 < args.length && !isFlagToken(args[i + 1])) {
                     parsed.flagValues.put(flag, args[++i]); // store and skip value
                 } else if (expectsValue && isLastInChunk) {
                     parsed.flagValues.put(flag, null); // no value supplied
@@ -200,6 +223,19 @@ public class FlagArgument extends GreedyStringArgument {
         }
 
         return parsed;
+    }
+
+    /**
+     * Whether a token is a flag delimiter ({@code --word} or {@code -x}) rather
+     * than a value. A leading {@code -} followed by a digit or {@code .} is
+     * treated as a negative number (a value), so {@code -5}, {@code -5,0,0} and
+     * {@code -.5} are values while {@code -r} and {@code --offset} are flags.
+     */
+    public static boolean isFlagToken(String token) {
+        if (token == null || token.length() < 2 || token.charAt(0) != '-') return false;
+        if (token.startsWith("--")) return true;
+        char c = token.charAt(1);
+        return !Character.isDigit(c) && c != '.';
     }
 
     /**
@@ -247,8 +283,8 @@ public class FlagArgument extends GreedyStringArgument {
             if (arg.startsWith("--") && arg.length() > 2) {
                 String word = arg.substring(2);
                 if (wordFlagsToStrip.isEmpty() || wordFlagsToStrip.contains(word)) {
-                    // Also skip the value token if this word flag expects one
-                    if (wordFlagsWithValue.contains(word) && i + 1 < args.length && !args[i + 1].startsWith("-")) {
+                    // Also skip the value token if this word flag expects one.
+                    if (wordFlagsWithValue.contains(word) && i + 1 < args.length && !isFlagToken(args[i + 1])) {
                         i++;
                     }
                     continue; // strip it
@@ -257,14 +293,14 @@ public class FlagArgument extends GreedyStringArgument {
                 continue;
             }
 
-            // Detect single-char flag tokens like "-a" or "-bc", but not negative numbers "-123"
-            if (arg.startsWith("-") && arg.length() > 1 && !arg.matches("-\\d+")) {
+            // Single-char flag tokens like "-a" or "-bc", but not negative numbers.
+            if (isFlagToken(arg)) {
                 String chunk = arg.substring(1);
 
                 // If the last flag in this group expects a value, skip the next token
                 char lastFlag = chunk.charAt(chunk.length() - 1);
                 if (flagsWithValue.contains(lastFlag) && i + 1 < args.length
-                        && !args[i + 1].startsWith("-")) {
+                        && !isFlagToken(args[i + 1])) {
                     i++; // skip the value token
                 }
                 // skip this flag token
