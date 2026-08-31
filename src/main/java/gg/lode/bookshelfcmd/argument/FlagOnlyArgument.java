@@ -3,6 +3,7 @@ package gg.lode.bookshelfcmd.argument;
 import com.mojang.brigadier.LiteralMessage;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
@@ -10,6 +11,7 @@ import dev.jorel.commandapi.arguments.Argument;
 import dev.jorel.commandapi.arguments.CommandAPIArgumentType;
 import dev.jorel.commandapi.arguments.GreedyArgument;
 import dev.jorel.commandapi.executors.CommandArguments;
+import io.papermc.paper.command.brigadier.argument.CustomArgumentType;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -74,12 +76,19 @@ public class FlagOnlyArgument extends Argument<String> implements GreedyArgument
      * unless every token is either a flag or the value of a flag that takes
      * one.
      */
-    private static final class FlagOnlyType implements ArgumentType<String> {
+    private static final class FlagOnlyType implements CustomArgumentType<String, String> {
 
         private final Set<Character> valueFlags;
 
         private FlagOnlyType(Set<Character> valueFlags) {
             this.valueFlags = valueFlags;
+        }
+
+        @Override
+        public ArgumentType<String> getNativeType() {
+            // Paper refuses to register an argument type it does not recognise,
+            // so it has to be told which vanilla type the client should see.
+            return StringArgumentType.greedyString();
         }
 
         @Override
