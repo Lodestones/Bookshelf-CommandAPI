@@ -1,6 +1,8 @@
 package gg.lode.bookshelfcmd.argument;
 
+import dev.jorel.commandapi.arguments.ArgumentSuggestions;
 import dev.jorel.commandapi.arguments.GreedyStringArgument;
+import org.bukkit.command.CommandSender;
 
 import java.util.*;
 
@@ -25,7 +27,15 @@ public class FlagArgument extends GreedyStringArgument {
         this.allFlags.addAll(valueFlags);
         this.wordFlags = new HashSet<>(wordFlags);
 
-        replaceSuggestions((info, builder) -> {
+        replaceSuggestions(flagSuggestions(this.allFlags, this.wordFlags));
+    }
+
+    /**
+     * The flag completion provider, shared with {@link FlagOnlyArgument} so both
+     * argument types suggest identically.
+     */
+    static ArgumentSuggestions<CommandSender> flagSuggestions(Set<Character> allFlags, Set<String> wordFlags) {
+        return ((info, builder) -> {
             String fullInput = info.currentInput().trim();
             String currentArg = info.currentArg();
             boolean endsWithSpace = info.currentInput().endsWith(" ");
@@ -47,7 +57,7 @@ public class FlagArgument extends GreedyStringArgument {
                     .filter(f -> !usedFlags.contains(f))
                     .toList();
 
-            List<String> unusedWordFlags = this.wordFlags.stream()
+            List<String> unusedWordFlags = wordFlags.stream()
                     .filter(w -> !usedWordFlags.contains(w))
                     .toList();
 
